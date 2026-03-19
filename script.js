@@ -1,13 +1,13 @@
-const imageFiles = [
+const images = [
   "ball.png",
   "cards.png",
   "goalie.jpg",
   "lavalle.jpg",
-  "lax stick.png",
+  "lax_stick.png",
   "wolfie.png"
 ];
 
-const logoFile = "wolfhead 2016.png";
+const logo = "wolfhead_2016.png";
 
 const board = document.getElementById("gameBoard");
 const startBtn = document.getElementById("startBtn");
@@ -19,12 +19,13 @@ let lockBoard = false;
 let timerStarted = false;
 let timerInterval = null;
 let timeLeft = 60;
-let shuffledCards = [];
 
+/* Shuffle array */
 function shuffle(array) {
   return [...array].sort(() => Math.random() - 0.5);
 }
 
+/* Build the 12 cards */
 function buildBoard() {
   board.innerHTML = "";
   firstCard = null;
@@ -35,55 +36,36 @@ function buildBoard() {
   timeLeft = 60;
   timerDisplay.textContent = "Time: 60";
 
-  shuffledCards = shuffle([...imageFiles, ...imageFiles]);
+  const shuffled = shuffle([...images, ...images]);
 
-  shuffledCards.forEach((imageName) => {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "card";
-    card.dataset.image = imageName;
+  shuffled.forEach((img) => {
+    const card = document.createElement("div");
+    card.classList.add("card");
 
     card.innerHTML = `
       <div class="card-inner">
-        <div class="card-face card-front">
-          <img src="${logoFile}" alt="Logo">
+        <div class="card-front">
+          <img src="${img}" alt="card image">
         </div>
-        <div class="card-face card-back">
-          <img src="${imageName}" alt="Card image">
+        <div class="card-back">
+          <img src="${logo}" alt="logo">
         </div>
       </div>
     `;
 
-    card.addEventListener("click", handleCardClick);
+    card.addEventListener("click", flipCard);
     board.appendChild(card);
   });
 }
 
-function startTimer() {
-  clearInterval(timerInterval);
-  timeLeft = 60;
-  timerDisplay.textContent = "Time: 60";
-
-  timerInterval = setInterval(() => {
-    timeLeft -= 1;
-    timerDisplay.textContent = `Time: ${timeLeft}`;
-
-    if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-      lockBoard = true;
-      alert("Time's up!");
-    }
-  }, 1000);
-}
-
-function handleCardClick() {
+/* Flip card logic */
+function flipCard() {
   if (lockBoard) return;
-  if (this.classList.contains("matched")) return;
-  if (this === firstCard) return;
+  if (this.classList.contains("flipped") || this.classList.contains("matched")) return;
 
   if (!timerStarted) {
-    timerStarted = true;
     startTimer();
+    timerStarted = true;
   }
 
   this.classList.add("flipped");
@@ -96,30 +78,51 @@ function handleCardClick() {
   secondCard = this;
   lockBoard = true;
 
-  const isMatch = firstCard.dataset.image === secondCard.dataset.image;
-
-  if (isMatch) {
+  if (firstCard.querySelector(".card-front img").src === secondCard.querySelector(".card-front img").src) {
+    // Matched
     firstCard.classList.add("matched");
     secondCard.classList.add("matched");
-
-    firstCard = null;
-    secondCard = null;
-    lockBoard = false;
-
-    const matchedCards = document.querySelectorAll(".card.matched");
-    if (matchedCards.length === 12) {
-      clearInterval(timerInterval);
-      alert("You win!");
-    }
+    resetTurn();
+    checkWin();
   } else {
     setTimeout(() => {
       firstCard.classList.remove("flipped");
       secondCard.classList.remove("flipped");
-      firstCard = null;
-      secondCard = null;
-      lockBoard = false;
-    }, 750);
+      resetTurn();
+    }, 800);
   }
 }
 
+function resetTurn() {
+  firstCard = null;
+  secondCard = null;
+  lockBoard = false;
+}
+
+/* Timer logic */
+function startTimer() {
+  clearInterval(timerInterval);
+  timerDisplay.textContent = "Time: 60";
+  timeLeft = 60;
+
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    timerDisplay.textContent = `Time: ${timeLeft}`;
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      lockBoard = true;
+      alert("Time's up!");
+    }
+  }, 1000);
+}
+
+function checkWin() {
+  const matched = document.querySelectorAll(".card.matched");
+  if (matched.length === 12) {
+    clearInterval(timerInterval);
+    alert("You win!");
+  }
+}
+
+/* Start button event */
 startBtn.addEventListener("click", buildBoard);
