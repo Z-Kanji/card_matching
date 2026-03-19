@@ -21,23 +21,12 @@ let lockBoard = false;
 let timerStarted = false;
 let timerInterval = null;
 let timeLeft = 60;
+let cardList = [];
 
-// Shuffle helper
-function shuffle(array) {
-  return array.sort(() => Math.random() - 0.5);
-}
-
-function buildBoard() {
+// Initialize board with logo
+function initializeBoard() {
   board.innerHTML = "";
-  firstCard = null;
-  secondCard = null;
-  lockBoard = false;
-  clearInterval(timerInterval);
-  timerStarted = false;
-  timeLeft = 60;
-  timerDisplay.textContent = "Time: 60";
-
-  const cardList = shuffle([...images, ...images]);
+  cardList = shuffle([...images, ...images]);
 
   cardList.forEach((img, index) => {
     const card = document.createElement("div");
@@ -59,15 +48,32 @@ function buildBoard() {
     card.addEventListener("click", flipCard);
     board.appendChild(card);
   });
+}
 
-  // Show all cards for 3 seconds
-  document.querySelectorAll(".card").forEach(c => c.classList.add("flipped"));
+// Start sequence: flip all images 3s, then shuffle and flip back
+function startGameSequence() {
+  const cards = document.querySelectorAll(".card");
+  cards.forEach(c => c.classList.add("flipped")); // show images
   setTimeout(() => {
-    document.querySelectorAll(".card").forEach(c => c.classList.remove("flipped"));
+    cardList = shuffle([...images, ...images]); // shuffle images
+
+    cards.forEach((card, index) => {
+      card.querySelector(".card-front img").src = cardList[index];
+      card.classList.remove("flipped"); // flip back to logo
+      card.classList.remove("matched");
+    });
+
+    firstCard = null;
+    secondCard = null;
+    lockBoard = false;
+    timerStarted = false;
+    timeLeft = 60;
+    timerDisplay.textContent = "Time: 60";
+
   }, 3000);
 }
 
-// Flip logic
+// Flip card logic
 function flipCard() {
   if (lockBoard) return;
   if (this.classList.contains("flipped") || this.classList.contains("matched")) return;
@@ -110,6 +116,7 @@ function resetTurn() {
   lockBoard = false;
 }
 
+// Timer
 function startTimer() {
   clearInterval(timerInterval);
   timerInterval = setInterval(() => {
@@ -122,6 +129,7 @@ function startTimer() {
   }, 1000);
 }
 
+// Check win
 function checkWin() {
   const matched = document.querySelectorAll(".card.matched");
   if (matched.length === 12) {
@@ -130,35 +138,36 @@ function checkWin() {
   }
 }
 
+// Overlay
 function showOverlay(win) {
   overlay.classList.remove("hidden");
   overlayText.textContent = win ? "YOU WIN!" : "YOU LOSE!";
-  if (win) {
-    // simple confetti effect
-    confettiEffect();
-  }
+  if(win) confettiEffect();
 }
 
-// Basic confetti
+// Simple confetti
 function confettiEffect() {
-  const colors = ["#ff0", "#f00", "#0f0", "#0ff", "#f0f"];
+  const colors = ["#ff0","#f00","#0f0","#0ff","#f0f"];
   const interval = setInterval(()=>{
     const conf = document.createElement("div");
-    conf.style.position = "fixed";
-    conf.style.width = "8px";
-    conf.style.height = "8px";
-    conf.style.background = colors[Math.floor(Math.random()*colors.length)];
-    conf.style.left = Math.random()*window.innerWidth + "px";
-    conf.style.top = "0px";
-    conf.style.zIndex = 200;
+    conf.style.position="fixed";
+    conf.style.width="8px";
+    conf.style.height="8px";
+    conf.style.background=colors[Math.floor(Math.random()*colors.length)];
+    conf.style.left=Math.random()*window.innerWidth+"px";
+    conf.style.top="0px";
+    conf.style.zIndex=200;
     document.body.appendChild(conf);
-    let top = 0;
-    const fall = setInterval(()=>{
-      top += 5;
-      conf.style.top = top + "px";
-      if(top>window.innerHeight){conf.remove(); clearInterval(fall);}
+    let top=0;
+    const fall=setInterval(()=>{
+      top+=5;
+      conf.style.top=top+"px";
+      if(top>window.innerHeight){conf.remove();clearInterval(fall);}
     },20);
   },50);
 }
 
-startBtn.addEventListener("click", buildBoard);
+// Initialize board on load
+initializeBoard();
+
+startBtn.addEventListener("click", startGameSequence);
