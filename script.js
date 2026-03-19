@@ -2,7 +2,7 @@ const images = [
   "ball.png",
   "cards.png",
   "goalie.jpg",
-  "lavalle.jpg",
+  "Lavalle.jpg",
   "lax_stick.png",
   "wolfie.png"
 ];
