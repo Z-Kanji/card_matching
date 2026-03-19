@@ -1,13 +1,13 @@
 const images = [
-  "img1.png",
-  "img2.png",
-  "img3.png",
-  "img4.png",
-  "img5.png",
-  "img6.png"
+  "ball.png",
+  "cards.png",
+  "goalie.jpg",
+  "lavalle.jpg",
+  "lax stick.png",
+  "wolfie.png"
 ];
 
-const logo = "logo.png"; // replace with your logo file
+const logo = "wolfhead 2016.png";
 
 let cards = [];
 let firstCard = null;
@@ -23,7 +23,7 @@ function createCards() {
 
   cards = [...images, ...images].sort(() => 0.5 - Math.random());
 
-  cards.forEach((img, index) => {
+  cards.forEach((img) => {
     const card = document.createElement("div");
     card.classList.add("card");
     card.dataset.image = img;
@@ -48,7 +48,6 @@ function flipCard() {
   if (lockBoard) return;
   if (this === firstCard) return;
 
-  // START TIMER ON FIRST CLICK ONLY
   if (!timerStarted) {
     startTimer();
     timerStarted = true;
@@ -120,7 +119,7 @@ document.getElementById("startBtn").addEventListener("click", () => {
 
   createCards();
 
-  // show all cards briefly
+  // Show all cards briefly
   const allCards = document.querySelectorAll(".card");
   allCards.forEach(card => card.classList.add("flip"));
 
