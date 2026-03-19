@@ -12,16 +12,24 @@ const logo = "wolfhead 2016.png";
 let cards = [];
 let firstCard = null;
 let secondCard = null;
-let lockBoard = false;
-let timeLeft = 60;
-let timerInterval;
+let lock = false;
 let timerStarted = false;
+let time = 60;
+let timerInterval;
 
-function createCards() {
-  const board = document.getElementById("gameBoard");
+const board = document.getElementById("gameBoard");
+const timerDisplay = document.getElementById("timer");
+const startBtn = document.getElementById("startBtn");
+
+/* CREATE CARDS */
+function setupGame() {
   board.innerHTML = "";
+  timerDisplay.textContent = "Time: 60";
 
-  cards = [...images, ...images].sort(() => 0.5 - Math.random());
+  timerStarted = false;
+  clearInterval(timerInterval);
+
+  cards = [...images, ...images].sort(() => Math.random() - 0.5);
 
   cards.forEach((img) => {
     const card = document.createElement("div");
@@ -29,31 +37,27 @@ function createCards() {
     card.dataset.image = img;
 
     card.innerHTML = `
-      <div class="card-inner">
-        <div class="card-back">
-          <img src="${logo}" alt="logo">
-        </div>
-        <div class="card-front">
-          <img src="${img}" alt="card">
-        </div>
-      </div>
+      <img src="${logo}" class="back">
+      <img src="${img}" class="front">
     `;
 
-    card.addEventListener("click", flipCard);
+    card.addEventListener("click", handleClick);
     board.appendChild(card);
   });
 }
 
-function flipCard() {
-  if (lockBoard) return;
-  if (this === firstCard) return;
+/* HANDLE CLICK */
+function handleClick() {
+  if (lock) return;
+  if (this.classList.contains("flipped")) return;
 
+  // Start timer ONLY on first click
   if (!timerStarted) {
     startTimer();
     timerStarted = true;
   }
 
-  this.classList.add("flip");
+  this.classList.add("flipped");
 
   if (!firstCard) {
     firstCard = this;
@@ -64,46 +68,46 @@ function flipCard() {
   checkMatch();
 }
 
+/* MATCH LOGIC */
 function checkMatch() {
-  const isMatch = firstCard.dataset.image === secondCard.dataset.image;
+  const match = firstCard.dataset.image === secondCard.dataset.image;
 
-  if (isMatch) {
+  if (match) {
     firstCard.classList.add("matched");
     secondCard.classList.add("matched");
     resetTurn();
     checkWin();
   } else {
-    lockBoard = true;
+    lock = true;
     setTimeout(() => {
-      firstCard.classList.remove("flip");
-      secondCard.classList.remove("flip");
+      firstCard.classList.remove("flipped");
+      secondCard.classList.remove("flipped");
       resetTurn();
-    }, 700);
+    }, 800);
   }
 }
 
 function resetTurn() {
   firstCard = null;
   secondCard = null;
-  lockBoard = false;
+  lock = false;
 }
 
+/* TIMER */
 function startTimer() {
-  timeLeft = 60;
-  document.getElementById("timer").textContent = "Time: " + timeLeft;
-
-  clearInterval(timerInterval);
+  time = 60;
   timerInterval = setInterval(() => {
-    timeLeft--;
-    document.getElementById("timer").textContent = "Time: " + timeLeft;
+    time--;
+    timerDisplay.textContent = "Time: " + time;
 
-    if (timeLeft <= 0) {
+    if (time <= 0) {
       clearInterval(timerInterval);
       alert("Time's up!");
     }
   }, 1000);
 }
 
+/* WIN CHECK */
 function checkWin() {
   const matched = document.querySelectorAll(".matched");
   if (matched.length === cards.length) {
@@ -112,18 +116,5 @@ function checkWin() {
   }
 }
 
-document.getElementById("startBtn").addEventListener("click", () => {
-  timerStarted = false;
-  clearInterval(timerInterval);
-  document.getElementById("timer").textContent = "Time: 60";
-
-  createCards();
-
-  // Show all cards briefly
-  const allCards = document.querySelectorAll(".card");
-  allCards.forEach(card => card.classList.add("flip"));
-
-  setTimeout(() => {
-    allCards.forEach(card => card.classList.remove("flip"));
-  }, 2000);
-});
+/* START BUTTON */
+startBtn.addEventListener("click", setupGame);
