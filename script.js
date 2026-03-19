@@ -11,6 +11,7 @@ const logo = "wolfhead.png";
 
 const board = document.getElementById("gameBoard");
 const startBtn = document.getElementById("startBtn");
+const playAgainBtn = document.getElementById("playAgainBtn");
 const timerDisplay = document.getElementById("timer");
 const overlay = document.getElementById("overlay");
 const overlayText = document.getElementById("overlayText");
@@ -19,32 +20,58 @@ let firstCard = null;
 let secondCard = null;
 let lockBoard = false;
 let timerStarted = false;
-let timeLeft = 60;
 let timerInterval = null;
+let timeLeft = 60;
+let gameOver = false;
 
-/* Shuffle */
 function shuffle(arr) {
   return [...arr].sort(() => Math.random() - 0.5);
 }
 
-/* Initialize board (LOGO SIDE SHOWING) */
+function resetGameState() {
+  firstCard = null;
+  secondCard = null;
+  lockBoard = false;
+  timerStarted = false;
+  gameOver = false;
+  clearInterval(timerInterval);
+  timeLeft = 60;
+  timerDisplay.textContent = "Time: 60";
+  hideOverlay();
+}
+
+function hideOverlay() {
+  overlay.classList.add("hidden");
+  overlay.setAttribute("aria-hidden", "true");
+}
+
+function showOverlay(win) {
+  overlayText.textContent = win ? "YOU WIN!" : "YOU LOSE!";
+  overlay.classList.remove("hidden");
+  overlay.setAttribute("aria-hidden", "false");
+
+  if (win) {
+    launchConfetti();
+  }
+}
+
 function initBoard() {
   board.innerHTML = "";
   const deck = shuffle([...images, ...images]);
 
   deck.forEach((img, i) => {
     const card = document.createElement("div");
-    card.classList.add("card");
+    card.className = "card";
 
     card.innerHTML = `
       <div class="card-inner">
         <div class="card-front">
-          <img src="${img}">
-          <div class="card-number">${i+1}</div>
+          <img src="${img}" alt="Card image">
+          <div class="card-number">${i + 1}</div>
         </div>
         <div class="card-back">
-          <img src="${logo}">
-          <div class="card-number">${i+1}</div>
+          <img src="${logo}" alt="Logo">
+          <div class="card-number">${i + 1}</div>
         </div>
       </div>
     `;
@@ -54,17 +81,17 @@ function initBoard() {
   });
 }
 
-/* Start sequence */
 function startSequence() {
-  const cards = document.querySelectorAll(".card");
+  if (gameOver) return;
 
-  cards.forEach(c => c.classList.add("flipped"));
+  const cards = document.querySelectorAll(".card");
+  cards.forEach(card => card.classList.add("flipped"));
 
   setTimeout(() => {
     const newDeck = shuffle([...images, ...images]);
 
-    cards.forEach((card, i) => {
-      card.querySelector(".card-front img").src = newDeck[i];
+    cards.forEach((card, index) => {
+      card.querySelector(".card-front img").src = newDeck[index];
       card.classList.remove("flipped");
       card.classList.remove("matched");
     });
@@ -73,19 +100,8 @@ function startSequence() {
   }, 3000);
 }
 
-/* Reset */
-function resetGameState() {
-  firstCard = null;
-  secondCard = null;
-  lockBoard = false;
-  timerStarted = false;
-  clearInterval(timerInterval);
-  timeLeft = 60;
-  timerDisplay.textContent = "Time: 60";
-}
-
-/* Flip logic */
 function flipCard() {
+  if (gameOver) return;
   if (lockBoard) return;
   if (this.classList.contains("flipped") || this.classList.contains("matched")) return;
 
@@ -127,9 +143,14 @@ function resetTurn() {
   lockBoard = false;
 }
 
-/* Timer */
 function startTimer() {
+  clearInterval(timerInterval);
   timerInterval = setInterval(() => {
+    if (gameOver) {
+      clearInterval(timerInterval);
+      return;
+    }
+
     timeLeft--;
     timerDisplay.textContent = `Time: ${timeLeft}`;
 
@@ -140,37 +161,42 @@ function startTimer() {
   }, 1000);
 }
 
-/* Win check */
 function checkWin() {
-  if (document.querySelectorAll(".matched").length === 12) {
+  if (document.querySelectorAll(".card.matched").length === 12) {
     clearInterval(timerInterval);
     endGame(true);
   }
 }
 
-/* End game */
 function endGame(win) {
-  overlay.classList.remove("hidden");
-  overlayText.textContent = win ? "YOU WIN!" : "YOU LOSE!";
-
-  if (win) launchConfetti();
+  gameOver = true;
+  lockBoard = true;
+  showOverlay(win);
 }
 
-/* Better confetti */
 function launchConfetti() {
-  const colors = ["#ff0","#f00","#0f0","#0ff","#f0f"];
-  for (let i = 0; i < 120; i++) {
-    const conf = document.createElement("div");
-    conf.className = "confetti";
-    conf.style.left = Math.random()*100 + "vw";
-    conf.style.background = colors[Math.floor(Math.random()*colors.length)];
-    conf.style.animationDuration = (Math.random()*3 + 2) + "s";
-    document.body.appendChild(conf);
+  const colors = ["#ff4d4d", "#ffd24d", "#4dff88", "#4dd2ff", "#c84dff"];
+  const pieces = 140;
 
-    setTimeout(()=>conf.remove(),5000);
+  for (let i = 0; i < pieces; i++) {
+    const confetti = document.createElement("div");
+    confetti.className = "confetti";
+    confetti.style.left = Math.random() * 100 + "vw";
+    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+    confetti.style.animationDuration = (2.8 + Math.random() * 2.2) + "s";
+    confetti.style.transform = `translateY(0) rotate(${Math.random() * 180}deg)`;
+    confetti.style.width = (5 + Math.random() * 5) + "px";
+    confetti.style.height = (8 + Math.random() * 10) + "px";
+    document.body.appendChild(confetti);
+
+    setTimeout(() => confetti.remove(), 6000);
   }
 }
 
-/* Init */
-initBoard();
 startBtn.addEventListener("click", startSequence);
+playAgainBtn.addEventListener("click", () => {
+  location.reload();
+});
+
+initBoard();
+resetGameState();
