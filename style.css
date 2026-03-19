@@ -1,7 +1,6 @@
-/* Full black background */
 body {
   margin: 0;
-  background-color: black;
+  background: black; /* FORCE BLACK BACKGROUND */
   color: white;
   font-family: Arial, sans-serif;
   display: flex;
@@ -12,76 +11,57 @@ body {
 /* Button */
 #startBtn {
   margin: 20px;
-  padding: 12px 24px;
+  padding: 10px 20px;
   font-size: 18px;
-  cursor: pointer;
 }
 
 /* Timer */
 #timer {
-  font-size: 26px;
+  font-size: 24px;
   margin-bottom: 20px;
 }
 
-/* 3 rows x 4 columns */
-#gameBoard {
+/* GRID: 4 columns, 3 rows */
+.grid {
   display: grid;
   grid-template-columns: repeat(4, 150px);
-  grid-template-rows: repeat(3, 200px);
   gap: 20px;
 }
 
-/* Card container */
+/* Card */
 .card {
   width: 150px;
   height: 200px;
-  perspective: 1000px;
-}
-
-/* Inner flip */
-.card-inner {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform 0.4s;
-}
-
-/* Flip effect */
-.card.flip .card-inner {
-  transform: rotateY(180deg);
-}
-
-/* BOTH SIDES (white rectangles) */
-.card-front,
-.card-back {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  background: white;
+  background: white; /* THIS IS THE WHITE RECTANGLE */
   border-radius: 10px;
-  backface-visibility: hidden;
   display: flex;
   justify-content: center;
   align-items: center;
+  cursor: pointer;
+  position: relative;
 }
 
-/* Back (logo side) */
-.card-back img {
+/* Hidden image (front) */
+.card img.front {
+  display: none;
+  max-width: 100px;
+}
+
+/* Logo (back) */
+.card img.back {
   max-width: 70px;
 }
 
-/* Front (image side) */
-.card-front {
-  transform: rotateY(180deg);
+/* When flipped */
+.card.flipped img.front {
+  display: block;
 }
 
-.card-front img {
-  max-width: 110px;
-  max-height: 110px;
+.card.flipped img.back {
+  display: none;
 }
 
-/* Green outline on match */
-.matched {
+/* Match highlight */
+.card.matched {
   outline: 4px solid green;
 }
