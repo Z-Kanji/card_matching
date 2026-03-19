@@ -2,7 +2,7 @@ const images = [
   "ball.png",
   "cards.png",
   "goalie.jpg",
-  "Lavalle.jpg",
+  "lavalle.jpg",
   "lax_stick.png",
   "wolfie.png"
 ];
@@ -12,6 +12,8 @@ const logo = "wolfhead.png";
 const board = document.getElementById("gameBoard");
 const startBtn = document.getElementById("startBtn");
 const timerDisplay = document.getElementById("timer");
+const overlay = document.getElementById("overlay");
+const overlayText = document.getElementById("overlayText");
 
 let firstCard = null;
 let secondCard = null;
@@ -20,35 +22,36 @@ let timerStarted = false;
 let timerInterval = null;
 let timeLeft = 60;
 
-/* Shuffle array */
+// Shuffle helper
 function shuffle(array) {
-  return [...array].sort(() => Math.random() - 0.5);
+  return array.sort(() => Math.random() - 0.5);
 }
 
-/* Build the 12 cards */
 function buildBoard() {
   board.innerHTML = "";
   firstCard = null;
   secondCard = null;
   lockBoard = false;
-  timerStarted = false;
   clearInterval(timerInterval);
+  timerStarted = false;
   timeLeft = 60;
   timerDisplay.textContent = "Time: 60";
 
-  const shuffled = shuffle([...images, ...images]);
+  const cardList = shuffle([...images, ...images]);
 
-  shuffled.forEach((img) => {
+  cardList.forEach((img, index) => {
     const card = document.createElement("div");
     card.classList.add("card");
 
     card.innerHTML = `
       <div class="card-inner">
         <div class="card-front">
-          <img src="${img}" alt="card image">
+          <img src="${img}" alt="card">
+          <div class="card-number">${index+1}</div>
         </div>
         <div class="card-back">
           <img src="${logo}" alt="logo">
+          <div class="card-number">${index+1}</div>
         </div>
       </div>
     `;
@@ -56,9 +59,15 @@ function buildBoard() {
     card.addEventListener("click", flipCard);
     board.appendChild(card);
   });
+
+  // Show all cards for 3 seconds
+  document.querySelectorAll(".card").forEach(c => c.classList.add("flipped"));
+  setTimeout(() => {
+    document.querySelectorAll(".card").forEach(c => c.classList.remove("flipped"));
+  }, 3000);
 }
 
-/* Flip card logic */
+// Flip logic
 function flipCard() {
   if (lockBoard) return;
   if (this.classList.contains("flipped") || this.classList.contains("matched")) return;
@@ -78,8 +87,10 @@ function flipCard() {
   secondCard = this;
   lockBoard = true;
 
-  if (firstCard.querySelector(".card-front img").src === secondCard.querySelector(".card-front img").src) {
-    // Matched
+  const firstImg = firstCard.querySelector(".card-front img").src;
+  const secondImg = secondCard.querySelector(".card-front img").src;
+
+  if (firstImg === secondImg) {
     firstCard.classList.add("matched");
     secondCard.classList.add("matched");
     resetTurn();
@@ -99,19 +110,14 @@ function resetTurn() {
   lockBoard = false;
 }
 
-/* Timer logic */
 function startTimer() {
   clearInterval(timerInterval);
-  timerDisplay.textContent = "Time: 60";
-  timeLeft = 60;
-
   timerInterval = setInterval(() => {
     timeLeft--;
     timerDisplay.textContent = `Time: ${timeLeft}`;
     if (timeLeft <= 0) {
       clearInterval(timerInterval);
-      lockBoard = true;
-      alert("Time's up!");
+      showOverlay(false);
     }
   }, 1000);
 }
@@ -120,9 +126,39 @@ function checkWin() {
   const matched = document.querySelectorAll(".card.matched");
   if (matched.length === 12) {
     clearInterval(timerInterval);
-    alert("You win!");
+    showOverlay(true);
   }
 }
 
-/* Start button event */
+function showOverlay(win) {
+  overlay.classList.remove("hidden");
+  overlayText.textContent = win ? "YOU WIN!" : "YOU LOSE!";
+  if (win) {
+    // simple confetti effect
+    confettiEffect();
+  }
+}
+
+// Basic confetti
+function confettiEffect() {
+  const colors = ["#ff0", "#f00", "#0f0", "#0ff", "#f0f"];
+  const interval = setInterval(()=>{
+    const conf = document.createElement("div");
+    conf.style.position = "fixed";
+    conf.style.width = "8px";
+    conf.style.height = "8px";
+    conf.style.background = colors[Math.floor(Math.random()*colors.length)];
+    conf.style.left = Math.random()*window.innerWidth + "px";
+    conf.style.top = "0px";
+    conf.style.zIndex = 200;
+    document.body.appendChild(conf);
+    let top = 0;
+    const fall = setInterval(()=>{
+      top += 5;
+      conf.style.top = top + "px";
+      if(top>window.innerHeight){conf.remove(); clearInterval(fall);}
+    },20);
+  },50);
+}
+
 startBtn.addEventListener("click", buildBoard);
