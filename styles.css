@@ -1,14 +1,8 @@
-/* Reset */
-* { margin:0; padding:0; box-sizing: border-box; }
-
-body {
-  font-family: Arial, sans-serif;
+body, html {
+  margin: 0;
+  padding: 0;
   background: black;
-  color: white;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  min-height: 100vh;
+  font-family: Arial, sans-serif;
 }
 
 .game-wrapper {
@@ -18,7 +12,6 @@ body {
   padding: 20px;
 }
 
-/* Grid */
 #gameBoard {
   display: grid;
   grid-template-columns: repeat(4, 150px);
@@ -27,12 +20,10 @@ body {
   margin-bottom: 20px;
 }
 
-/* Card */
 .card {
   width: 150px;
   height: 200px;
   perspective: 1000px;
-  position: relative;
   cursor: pointer;
 }
 
@@ -40,8 +31,8 @@ body {
   width: 100%;
   height: 100%;
   position: relative;
-  transition: transform 0.5s;
   transform-style: preserve-3d;
+  transition: transform 0.5s;
 }
 
 .card.flipped .card-inner {
@@ -78,12 +69,10 @@ body {
   color: black;
 }
 
-/* Matched */
 .card.matched {
   outline: 4px solid green;
 }
 
-/* Controls */
 .controls {
   display: flex;
   flex-direction: column;
@@ -102,7 +91,6 @@ body {
   font-weight: bold;
 }
 
-/* Overlay */
 #overlay {
   position: fixed;
   top:0;
