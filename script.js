@@ -19,33 +19,32 @@ let firstCard = null;
 let secondCard = null;
 let lockBoard = false;
 let timerStarted = false;
-let timerInterval = null;
 let timeLeft = 60;
-let cardList = [];
+let timerInterval = null;
 
-// Shuffle helper
-function shuffle(array) {
-  return array.sort(() => Math.random() - 0.5);
+/* Shuffle */
+function shuffle(arr) {
+  return [...arr].sort(() => Math.random() - 0.5);
 }
 
-// Build board with logos (face-down) immediately
-function initializeBoard() {
+/* Initialize board (LOGO SIDE SHOWING) */
+function initBoard() {
   board.innerHTML = "";
-  cardList = shuffle([...images, ...images]);
+  const deck = shuffle([...images, ...images]);
 
-  cardList.forEach((img, index) => {
+  deck.forEach((img, i) => {
     const card = document.createElement("div");
     card.classList.add("card");
 
     card.innerHTML = `
       <div class="card-inner">
         <div class="card-front">
-          <img src="${img}" alt="card">
-          <div class="card-number">${index+1}</div>
+          <img src="${img}">
+          <div class="card-number">${i+1}</div>
         </div>
         <div class="card-back">
-          <img src="${logo}" alt="logo">
-          <div class="card-number">${index+1}</div>
+          <img src="${logo}">
+          <div class="card-number">${i+1}</div>
         </div>
       </div>
     `;
@@ -55,30 +54,37 @@ function initializeBoard() {
   });
 }
 
-// Start game sequence: show all images 3s, then flip back and shuffle
-function startGameSequence() {
+/* Start sequence */
+function startSequence() {
   const cards = document.querySelectorAll(".card");
-  cards.forEach(c => c.classList.add("flipped")); // show images
-  setTimeout(() => {
-    cardList = shuffle([...images, ...images]); // shuffle images
 
-    cards.forEach((card, index) => {
-      card.querySelector(".card-front img").src = cardList[index];
-      card.classList.remove("flipped"); // flip back
+  cards.forEach(c => c.classList.add("flipped"));
+
+  setTimeout(() => {
+    const newDeck = shuffle([...images, ...images]);
+
+    cards.forEach((card, i) => {
+      card.querySelector(".card-front img").src = newDeck[i];
+      card.classList.remove("flipped");
       card.classList.remove("matched");
     });
 
-    firstCard = null;
-    secondCard = null;
-    lockBoard = false;
-    timerStarted = false;
-    timeLeft = 60;
-    timerDisplay.textContent = "Time: 60";
-
+    resetGameState();
   }, 3000);
 }
 
-// Card flip logic
+/* Reset */
+function resetGameState() {
+  firstCard = null;
+  secondCard = null;
+  lockBoard = false;
+  timerStarted = false;
+  clearInterval(timerInterval);
+  timeLeft = 60;
+  timerDisplay.textContent = "Time: 60";
+}
+
+/* Flip logic */
 function flipCard() {
   if (lockBoard) return;
   if (this.classList.contains("flipped") || this.classList.contains("matched")) return;
@@ -98,10 +104,10 @@ function flipCard() {
   secondCard = this;
   lockBoard = true;
 
-  const firstImg = firstCard.querySelector(".card-front img").src;
-  const secondImg = secondCard.querySelector(".card-front img").src;
+  const img1 = firstCard.querySelector(".card-front img").src;
+  const img2 = secondCard.querySelector(".card-front img").src;
 
-  if (firstImg === secondImg) {
+  if (img1 === img2) {
     firstCard.classList.add("matched");
     secondCard.classList.add("matched");
     resetTurn();
@@ -121,59 +127,50 @@ function resetTurn() {
   lockBoard = false;
 }
 
-// Timer
+/* Timer */
 function startTimer() {
-  clearInterval(timerInterval);
   timerInterval = setInterval(() => {
     timeLeft--;
     timerDisplay.textContent = `Time: ${timeLeft}`;
+
     if (timeLeft <= 0) {
       clearInterval(timerInterval);
-      showOverlay(false);
+      endGame(false);
     }
   }, 1000);
 }
 
-// Check win
+/* Win check */
 function checkWin() {
-  const matched = document.querySelectorAll(".card.matched");
-  if (matched.length === 12) {
+  if (document.querySelectorAll(".matched").length === 12) {
     clearInterval(timerInterval);
-    showOverlay(true);
+    endGame(true);
   }
 }
 
-// Overlay
-function showOverlay(win) {
+/* End game */
+function endGame(win) {
   overlay.classList.remove("hidden");
   overlayText.textContent = win ? "YOU WIN!" : "YOU LOSE!";
-  if(win) confettiEffect();
+
+  if (win) launchConfetti();
 }
 
-// Simple confetti effect
-function confettiEffect() {
+/* Better confetti */
+function launchConfetti() {
   const colors = ["#ff0","#f00","#0f0","#0ff","#f0f"];
-  const interval = setInterval(()=>{
+  for (let i = 0; i < 120; i++) {
     const conf = document.createElement("div");
-    conf.style.position="fixed";
-    conf.style.width="8px";
-    conf.style.height="8px";
-    conf.style.background=colors[Math.floor(Math.random()*colors.length)];
-    conf.style.left=Math.random()*window.innerWidth+"px";
-    conf.style.top="0px";
-    conf.style.zIndex=200;
+    conf.className = "confetti";
+    conf.style.left = Math.random()*100 + "vw";
+    conf.style.background = colors[Math.floor(Math.random()*colors.length)];
+    conf.style.animationDuration = (Math.random()*3 + 2) + "s";
     document.body.appendChild(conf);
-    let top=0;
-    const fall=setInterval(()=>{
-      top+=5;
-      conf.style.top=top+"px";
-      if(top>window.innerHeight){conf.remove();clearInterval(fall);}
-    },20);
-  },50);
+
+    setTimeout(()=>conf.remove(),5000);
+  }
 }
 
-// Initialize board on page load
-initializeBoard();
-
-// Start button triggers start sequence
-startBtn.addEventListener("click", startGameSequence);
+/* Init */
+initBoard();
+startBtn.addEventListener("click", startSequence);
