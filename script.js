@@ -23,7 +23,12 @@ let timerInterval = null;
 let timeLeft = 60;
 let cardList = [];
 
-// Initialize board with logo
+// Shuffle helper
+function shuffle(array) {
+  return array.sort(() => Math.random() - 0.5);
+}
+
+// Build board with logos (face-down) immediately
 function initializeBoard() {
   board.innerHTML = "";
   cardList = shuffle([...images, ...images]);
@@ -50,7 +55,7 @@ function initializeBoard() {
   });
 }
 
-// Start sequence: flip all images 3s, then shuffle and flip back
+// Start game sequence: show all images 3s, then flip back and shuffle
 function startGameSequence() {
   const cards = document.querySelectorAll(".card");
   cards.forEach(c => c.classList.add("flipped")); // show images
@@ -59,7 +64,7 @@ function startGameSequence() {
 
     cards.forEach((card, index) => {
       card.querySelector(".card-front img").src = cardList[index];
-      card.classList.remove("flipped"); // flip back to logo
+      card.classList.remove("flipped"); // flip back
       card.classList.remove("matched");
     });
 
@@ -73,7 +78,7 @@ function startGameSequence() {
   }, 3000);
 }
 
-// Flip card logic
+// Card flip logic
 function flipCard() {
   if (lockBoard) return;
   if (this.classList.contains("flipped") || this.classList.contains("matched")) return;
@@ -145,7 +150,7 @@ function showOverlay(win) {
   if(win) confettiEffect();
 }
 
-// Simple confetti
+// Simple confetti effect
 function confettiEffect() {
   const colors = ["#ff0","#f00","#0f0","#0ff","#f0f"];
   const interval = setInterval(()=>{
@@ -167,7 +172,8 @@ function confettiEffect() {
   },50);
 }
 
-// Initialize board on load
+// Initialize board on page load
 initializeBoard();
 
+// Start button triggers start sequence
 startBtn.addEventListener("click", startGameSequence);
