@@ -7,7 +7,7 @@ const images = [
   "wolfie.png"
 ];
 
-const logo = "wolfhead_2016.png";
+const logo = "Wolfhead_2016.png";
 
 const board = document.getElementById("gameBoard");
 const startBtn = document.getElementById("startBtn");
