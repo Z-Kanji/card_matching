@@ -1,4 +1,4 @@
-const images = [
+const imageFiles = [
   "ball.png",
   "cards.png",
   "goalie.jpg",
@@ -7,54 +7,83 @@ const images = [
   "wolfie.png"
 ];
 
-const logo = "wolfhead 2016.png";
-
-let cards = [];
-let firstCard = null;
-let secondCard = null;
-let lock = false;
-let timerStarted = false;
-let time = 60;
-let timerInterval;
+const logoFile = "wolfhead 2016.png";
 
 const board = document.getElementById("gameBoard");
-const timerDisplay = document.getElementById("timer");
 const startBtn = document.getElementById("startBtn");
+const timerDisplay = document.getElementById("timer");
 
-/* CREATE CARDS */
-function setupGame() {
+let firstCard = null;
+let secondCard = null;
+let lockBoard = false;
+let timerStarted = false;
+let timerInterval = null;
+let timeLeft = 60;
+let shuffledCards = [];
+
+function shuffle(array) {
+  return [...array].sort(() => Math.random() - 0.5);
+}
+
+function buildBoard() {
   board.innerHTML = "";
-  timerDisplay.textContent = "Time: 60";
-
+  firstCard = null;
+  secondCard = null;
+  lockBoard = false;
   timerStarted = false;
   clearInterval(timerInterval);
+  timeLeft = 60;
+  timerDisplay.textContent = "Time: 60";
 
-  cards = [...images, ...images].sort(() => Math.random() - 0.5);
+  shuffledCards = shuffle([...imageFiles, ...imageFiles]);
 
-  cards.forEach((img) => {
-    const card = document.createElement("div");
-    card.classList.add("card");
-    card.dataset.image = img;
+  shuffledCards.forEach((imageName) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "card";
+    card.dataset.image = imageName;
 
     card.innerHTML = `
-      <img src="${logo}" class="back">
-      <img src="${img}" class="front">
+      <div class="card-inner">
+        <div class="card-face card-front">
+          <img src="${logoFile}" alt="Logo">
+        </div>
+        <div class="card-face card-back">
+          <img src="${imageName}" alt="Card image">
+        </div>
+      </div>
     `;
 
-    card.addEventListener("click", handleClick);
+    card.addEventListener("click", handleCardClick);
     board.appendChild(card);
   });
 }
 
-/* HANDLE CLICK */
-function handleClick() {
-  if (lock) return;
-  if (this.classList.contains("flipped")) return;
+function startTimer() {
+  clearInterval(timerInterval);
+  timeLeft = 60;
+  timerDisplay.textContent = "Time: 60";
 
-  // Start timer ONLY on first click
+  timerInterval = setInterval(() => {
+    timeLeft -= 1;
+    timerDisplay.textContent = `Time: ${timeLeft}`;
+
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      lockBoard = true;
+      alert("Time's up!");
+    }
+  }, 1000);
+}
+
+function handleCardClick() {
+  if (lockBoard) return;
+  if (this.classList.contains("matched")) return;
+  if (this === firstCard) return;
+
   if (!timerStarted) {
-    startTimer();
     timerStarted = true;
+    startTimer();
   }
 
   this.classList.add("flipped");
@@ -65,56 +94,32 @@ function handleClick() {
   }
 
   secondCard = this;
-  checkMatch();
-}
+  lockBoard = true;
 
-/* MATCH LOGIC */
-function checkMatch() {
-  const match = firstCard.dataset.image === secondCard.dataset.image;
+  const isMatch = firstCard.dataset.image === secondCard.dataset.image;
 
-  if (match) {
+  if (isMatch) {
     firstCard.classList.add("matched");
     secondCard.classList.add("matched");
-    resetTurn();
-    checkWin();
+
+    firstCard = null;
+    secondCard = null;
+    lockBoard = false;
+
+    const matchedCards = document.querySelectorAll(".card.matched");
+    if (matchedCards.length === 12) {
+      clearInterval(timerInterval);
+      alert("You win!");
+    }
   } else {
-    lock = true;
     setTimeout(() => {
       firstCard.classList.remove("flipped");
       secondCard.classList.remove("flipped");
-      resetTurn();
-    }, 800);
+      firstCard = null;
+      secondCard = null;
+      lockBoard = false;
+    }, 750);
   }
 }
 
-function resetTurn() {
-  firstCard = null;
-  secondCard = null;
-  lock = false;
-}
-
-/* TIMER */
-function startTimer() {
-  time = 60;
-  timerInterval = setInterval(() => {
-    time--;
-    timerDisplay.textContent = "Time: " + time;
-
-    if (time <= 0) {
-      clearInterval(timerInterval);
-      alert("Time's up!");
-    }
-  }, 1000);
-}
-
-/* WIN CHECK */
-function checkWin() {
-  const matched = document.querySelectorAll(".matched");
-  if (matched.length === cards.length) {
-    clearInterval(timerInterval);
-    alert("You win!");
-  }
-}
-
-/* START BUTTON */
-startBtn.addEventListener("click", setupGame);
+startBtn.addEventListener("click", buildBoard);
