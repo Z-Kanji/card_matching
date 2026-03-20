@@ -11,192 +11,178 @@ const logo = "wolfhead.png";
 
 const board = document.getElementById("gameBoard");
 const startBtn = document.getElementById("startBtn");
-const playAgainBtn = document.getElementById("playAgainBtn");
-const timerDisplay = document.getElementById("timer");
 const overlay = document.getElementById("overlay");
 const overlayText = document.getElementById("overlayText");
+const timerDisplay = document.getElementById("timer");
 
-let firstCard = null;
-let secondCard = null;
-let lockBoard = false;
-let timerStarted = false;
-let timerInterval = null;
-let timeLeft = 60;
-let gameOver = false;
+let firstCard=null, secondCard=null;
+let lockBoard=false, timerStarted=false;
+let timerInterval, timeLeft=60, gameOver=false;
 
-function shuffle(arr) {
-  return [...arr].sort(() => Math.random() - 0.5);
+/* Shuffle */
+function shuffle(arr){
+  return [...arr].sort(()=>Math.random()-0.5);
 }
 
-function resetGameState() {
-  firstCard = null;
-  secondCard = null;
-  lockBoard = false;
-  timerStarted = false;
-  gameOver = false;
-  clearInterval(timerInterval);
-  timeLeft = 60;
-  timerDisplay.textContent = "Time: 60";
-  hideOverlay();
-}
+/* Init board */
+function initBoard(){
+  board.innerHTML="";
+  const deck=shuffle([...images,...images]);
 
-function hideOverlay() {
-  overlay.classList.add("hidden");
-  overlay.setAttribute("aria-hidden", "true");
-}
+  deck.forEach((img,i)=>{
+    const card=document.createElement("div");
+    card.className="card";
 
-function showOverlay(win) {
-  overlayText.textContent = win ? "YOU WIN!" : "YOU LOSE!";
-  overlay.classList.remove("hidden");
-  overlay.setAttribute("aria-hidden", "false");
-
-  if (win) {
-    launchConfetti();
-  }
-}
-
-function initBoard() {
-  board.innerHTML = "";
-  const deck = shuffle([...images, ...images]);
-
-  deck.forEach((img, i) => {
-    const card = document.createElement("div");
-    card.className = "card";
-
-    card.innerHTML = `
+    card.innerHTML=`
       <div class="card-inner">
         <div class="card-front">
-          <img src="${img}" alt="Card image">
-          <div class="card-number">${i + 1}</div>
+          <img src="${img}">
+          <div class="card-number">${i+1}</div>
         </div>
         <div class="card-back">
-          <img src="${logo}" alt="Logo">
-          <div class="card-number">${i + 1}</div>
+          <img src="${logo}">
+          <div class="card-number">${i+1}</div>
         </div>
       </div>
     `;
 
-    card.addEventListener("click", flipCard);
+    card.addEventListener("click",flipCard);
     board.appendChild(card);
   });
 }
 
-function startSequence() {
-  if (gameOver) return;
+/* -------- SHUFFLE ANIMATION -------- */
+function shuffleAnimation(callback){
+  const cards=[...document.querySelectorAll(".card")];
 
-  const cards = document.querySelectorAll(".card");
-  cards.forEach(card => card.classList.add("flipped"));
+  cards.forEach((card,i)=>{
+    const left = i%2===0;
+    card.style.setProperty("--x", left ? "-120px" : "120px");
+    card.style.setProperty("--y", "40px");
+    card.classList.add("to-pile");
+  });
 
-  setTimeout(() => {
-    const newDeck = shuffle([...images, ...images]);
+  setTimeout(()=>{
+    callback(); // shuffle images
 
-    cards.forEach((card, index) => {
-      card.querySelector(".card-front img").src = newDeck[index];
-      card.classList.remove("flipped");
-      card.classList.remove("matched");
+    cards.forEach(card=>{
+      card.classList.remove("to-pile");
+      card.classList.add("from-pile");
     });
 
-    resetGameState();
-  }, 3000);
+    setTimeout(()=>{
+      cards.forEach(c=>c.classList.remove("from-pile"));
+    },600);
+
+  },600);
 }
 
-function flipCard() {
-  if (gameOver) return;
-  if (lockBoard) return;
-  if (this.classList.contains("flipped") || this.classList.contains("matched")) return;
+/* Start sequence */
+function startSequence(){
+  if(gameOver) return;
 
-  if (!timerStarted) {
+  const cards=document.querySelectorAll(".card");
+
+  cards.forEach(c=>c.classList.add("flipped"));
+
+  setTimeout(()=>{
+    shuffleAnimation(()=>{
+      const newDeck=shuffle([...images,...images]);
+      cards.forEach((card,i)=>{
+        card.querySelector(".card-front img").src=newDeck[i];
+        card.classList.remove("flipped","matched");
+      });
+    });
+  },3000);
+}
+
+/* Flip logic */
+function flipCard(){
+  if(lockBoard||gameOver||this.classList.contains("flipped")) return;
+
+  if(!timerStarted){
     startTimer();
-    timerStarted = true;
+    timerStarted=true;
   }
 
   this.classList.add("flipped");
 
-  if (!firstCard) {
-    firstCard = this;
+  if(!firstCard){
+    firstCard=this;
     return;
   }
 
-  secondCard = this;
-  lockBoard = true;
+  secondCard=this;
+  lockBoard=true;
 
-  const img1 = firstCard.querySelector(".card-front img").src;
-  const img2 = secondCard.querySelector(".card-front img").src;
+  const a=firstCard.querySelector("img").src;
+  const b=secondCard.querySelector("img").src;
 
-  if (img1 === img2) {
+  if(a===b){
     firstCard.classList.add("matched");
     secondCard.classList.add("matched");
-    resetTurn();
+    reset();
     checkWin();
   } else {
-    setTimeout(() => {
+    setTimeout(()=>{
       firstCard.classList.remove("flipped");
       secondCard.classList.remove("flipped");
-      resetTurn();
-    }, 800);
+      reset();
+    },800);
   }
 }
 
-function resetTurn() {
-  firstCard = null;
-  secondCard = null;
-  lockBoard = false;
+function reset(){
+  firstCard=null;
+  secondCard=null;
+  lockBoard=false;
 }
 
-function startTimer() {
-  clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    if (gameOver) {
-      clearInterval(timerInterval);
-      return;
-    }
-
+/* Timer */
+function startTimer(){
+  timerInterval=setInterval(()=>{
     timeLeft--;
-    timerDisplay.textContent = `Time: ${timeLeft}`;
+    timerDisplay.textContent=`Time: ${timeLeft}`;
 
-    if (timeLeft <= 0) {
+    if(timeLeft<=0){
       clearInterval(timerInterval);
       endGame(false);
     }
-  }, 1000);
+  },1000);
 }
 
-function checkWin() {
-  if (document.querySelectorAll(".card.matched").length === 12) {
+/* Win */
+function checkWin(){
+  if(document.querySelectorAll(".matched").length===12){
     clearInterval(timerInterval);
     endGame(true);
   }
 }
 
-function endGame(win) {
-  gameOver = true;
-  lockBoard = true;
-  showOverlay(win);
+/* End */
+function endGame(win){
+  gameOver=true;
+  overlay.classList.remove("hidden");
+  overlayText.textContent=win?"YOU WIN!":"YOU LOSE!";
+  if(win) confetti();
 }
 
-function launchConfetti() {
-  const colors = ["#ff4d4d", "#ffd24d", "#4dff88", "#4dd2ff", "#c84dff"];
-  const pieces = 140;
+/* Better + longer confetti */
+function confetti(){
+  const colors=["#ff4d4d","#ffd24d","#4dff88","#4dd2ff","#c84dff"];
 
-  for (let i = 0; i < pieces; i++) {
-    const confetti = document.createElement("div");
-    confetti.className = "confetti";
-    confetti.style.left = Math.random() * 100 + "vw";
-    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
-    confetti.style.animationDuration = (2.8 + Math.random() * 2.2) + "s";
-    confetti.style.transform = `translateY(0) rotate(${Math.random() * 180}deg)`;
-    confetti.style.width = (5 + Math.random() * 5) + "px";
-    confetti.style.height = (8 + Math.random() * 10) + "px";
-    document.body.appendChild(confetti);
+  for(let i=0;i<200;i++){
+    const c=document.createElement("div");
+    c.className="confetti";
+    c.style.left=Math.random()*100+"vw";
+    c.style.background=colors[Math.floor(Math.random()*colors.length)];
+    c.style.animationDuration=(4+Math.random()*4)+"s";
+    document.body.appendChild(c);
 
-    setTimeout(() => confetti.remove(), 6000);
+    setTimeout(()=>c.remove(),8000);
   }
 }
 
-startBtn.addEventListener("click", startSequence);
-playAgainBtn.addEventListener("click", () => {
-  location.reload();
-});
-
+/* Init */
 initBoard();
-resetGameState();
+startBtn.addEventListener("click",startSequence);
