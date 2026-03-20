@@ -5,23 +5,33 @@ const mode = params.get("mode") || "master";
 let ably = ablyKey ? new Ably.Realtime(ablyKey) : null;
 let channel = ably ? ably.channels.get("card-game") : null;
 
-/* ---------------- GAME STATE ---------------- */
-let state = {
-  deck: [],
-  flipped: [],
-  matched: [],
-  time: 60,
-  started: false,
-  gameOver: false
-};
+/* SEND EVENT */
+function send(type, data = {}) {
+  if (mode === "master" && channel) {
+    channel.publish(type, data);
+  }
+}
+
+/* RECEIVE EVENTS (FOLLOW) */
+if (channel && mode === "follow") {
+  channel.subscribe((msg) => {
+    const { name, data } = msg;
+
+    if (name === "start") startSequence(false);
+    if (name === "shuffle") runShuffle(data.deck);
+    if (name === "flip") flipFromSync(data.index);
+    if (name === "unflip") unflipFromSync(data.a, data.b);
+    if (name === "match") matchFromSync(data.a, data.b);
+    if (name === "timer") updateTimer(data.time);
+    if (name === "end") endGame(data.win);
+  });
+}
+
+/* ---------------- ORIGINAL GAME ---------------- */
 
 const images = [
-  "ball.png",
-  "cards.png",
-  "goalie.jpg",
-  "lavalle.jpg",
-  "lax_stick.png",
-  "wolfie.png"
+  "ball.png","cards.png","goalie.jpg",
+  "lavalle.jpg","lax_stick.png","wolfie.png"
 ];
 
 const logo = "wolfhead.png";
@@ -33,30 +43,18 @@ const overlay = document.getElementById("overlay");
 const overlayText = document.getElementById("overlayText");
 const timerDisplay = document.getElementById("timer");
 
-/* ---------------- SYNC ---------------- */
-function broadcast(){
-  if(mode==="master" && channel){
-    channel.publish("state", state);
-  }
-}
+let firstCard=null, secondCard=null;
+let lockBoard=false, timerStarted=false;
+let timerInterval, timeLeft=60, gameOver=false;
 
-if(channel && mode==="follow"){
-  channel.subscribe("state", msg=>{
-    state = msg.data;
-    renderState();
-  });
-}
-
-/* ---------------- INIT ---------------- */
-function shuffle(arr){
-  return [...arr].sort(()=>Math.random()-0.5);
-}
+/* INIT */
+function shuffle(arr){ return [...arr].sort(()=>Math.random()-0.5); }
 
 function initBoard(){
   board.innerHTML="";
-  state.deck = shuffle([...images, ...images]);
+  const deck=shuffle([...images,...images]);
 
-  state.deck.forEach((img,i)=>{
+  deck.forEach((img,i)=>{
     const card=document.createElement("div");
     card.className="card";
 
@@ -74,139 +72,154 @@ function initBoard(){
     `;
 
     if(mode==="master"){
-      card.addEventListener("click",()=>handleFlip(i));
+      card.addEventListener("click",()=>flipCard(card,i));
     }
 
     board.appendChild(card);
   });
-
-  renderState();
 }
 
-/* ---------------- RENDER ---------------- */
-function renderState(){
-  const cards = document.querySelectorAll(".card");
+/* START */
+function startSequence(sendEvent=true){
+  if(gameOver) return;
 
-  cards.forEach((card,i)=>{
-    card.classList.toggle("flipped", state.flipped.includes(i));
-    card.classList.toggle("matched", state.matched.includes(i));
-  });
+  const cards=document.querySelectorAll(".card");
+  cards.forEach(c=>c.classList.add("flipped"));
 
-  timerDisplay.textContent = `Time: ${state.time}`;
-
-  if(state.gameOver){
-    overlay.classList.remove("hidden");
-    overlayText.textContent = state.win ? "YOU WIN!" : "YOU LOSE!";
-  }
-}
-
-/* ---------------- START ---------------- */
-function startSequence(){
-  if(mode!=="master") return;
-
-  const cards = document.querySelectorAll(".card");
-
-  cards.forEach((c,i)=>{
-    state.flipped.push(i);
-  });
-
-  broadcast();
-  renderState();
+  if(sendEvent) send("start");
 
   setTimeout(()=>{
-    state.flipped = [];
-    state.matched = [];
-    state.deck = shuffle([...images,...images]);
-    state.started = true;
-    state.time = 60;
+    const newDeck=shuffle([...images,...images]);
 
-    updateCardImages();
-    broadcast();
-    renderState();
+    runShuffle(newDeck);
+    if(sendEvent) send("shuffle",{deck:newDeck});
+
   },3000);
 }
 
-/* Update images after shuffle */
-function updateCardImages(){
-  const cards = document.querySelectorAll(".card");
+/* SHUFFLE */
+function runShuffle(deck){
+  const cards=[...document.querySelectorAll(".card")];
+
   cards.forEach((card,i)=>{
-    card.querySelector(".card-front img").src = state.deck[i];
+    if(i<6) card.classList.add("to-left");
+    else card.classList.add("to-right");
   });
+
+  setTimeout(()=>{
+    cards.forEach((card,i)=>{
+      card.querySelector(".card-front img").src=deck[i];
+      card.classList.remove("flipped","matched");
+    });
+
+    cards.forEach(card=>{
+      card.classList.remove("to-left","to-right");
+      card.classList.add("from-pile");
+    });
+
+    setTimeout(()=>{
+      cards.forEach(c=>c.classList.remove("from-pile"));
+    },600);
+
+  },600);
 }
 
-/* ---------------- GAMEPLAY ---------------- */
-let first=null;
+/* FLIP */
+function flipCard(card,index){
+  if(lockBoard||gameOver||card.classList.contains("flipped")) return;
 
-function handleFlip(index){
-  if(state.gameOver) return;
-  if(state.flipped.includes(index)) return;
-
-  if(!state.started){
+  if(!timerStarted){
     startTimer();
-    state.started=true;
+    timerStarted=true;
   }
 
-  state.flipped.push(index);
+  card.classList.add("flipped");
+  send("flip",{index});
 
-  if(first===null){
-    first=index;
+  if(!firstCard){
+    firstCard={card,index};
+    return;
+  }
+
+  secondCard={card,index};
+  lockBoard=true;
+
+  const a=firstCard.card.querySelector("img").src;
+  const b=secondCard.card.querySelector("img").src;
+
+  if(a===b){
+    firstCard.card.classList.add("matched");
+    secondCard.card.classList.add("matched");
+
+    send("match",{a:firstCard.index,b:secondCard.index});
+    reset();
+    checkWin();
+
   } else {
-    const second=index;
+    setTimeout(()=>{
+      firstCard.card.classList.remove("flipped");
+      secondCard.card.classList.remove("flipped");
 
-    if(state.deck[first] === state.deck[second]){
-      state.matched.push(first, second);
-      first=null;
-    } else {
-      setTimeout(()=>{
-        state.flipped = state.flipped.filter(i=>i!==first && i!==second);
-        first=null;
-        broadcast();
-        renderState();
-      },800);
-    }
+      send("unflip",{a:firstCard.index,b:secondCard.index});
+      reset();
+    },800);
   }
-
-  broadcast();
-  renderState();
-  checkWin();
 }
 
-/* ---------------- TIMER ---------------- */
+/* FOLLOW HELPERS */
+function flipFromSync(i){
+  document.querySelectorAll(".card")[i].classList.add("flipped");
+}
+
+function unflipFromSync(a,b){
+  const cards=document.querySelectorAll(".card");
+  cards[a].classList.remove("flipped");
+  cards[b].classList.remove("flipped");
+}
+
+function matchFromSync(a,b){
+  const cards=document.querySelectorAll(".card");
+  cards[a].classList.add("matched");
+  cards[b].classList.add("matched");
+}
+
+/* TIMER */
 function startTimer(){
-  const interval = setInterval(()=>{
-    if(state.gameOver){
-      clearInterval(interval);
-      return;
-    }
+  timerInterval=setInterval(()=>{
+    timeLeft--;
+    timerDisplay.textContent=`Time: ${timeLeft}`;
+    send("timer",{time:timeLeft});
 
-    state.time--;
-    broadcast();
-    renderState();
-
-    if(state.time<=0){
+    if(timeLeft<=0){
+      clearInterval(timerInterval);
       endGame(false);
-      clearInterval(interval);
     }
   },1000);
 }
 
-/* ---------------- WIN ---------------- */
+function updateTimer(t){
+  timerDisplay.textContent=`Time: ${t}`;
+}
+
+/* WIN */
 function checkWin(){
-  if(state.matched.length===12){
+  if(document.querySelectorAll(".matched").length===12){
+    clearInterval(timerInterval);
     endGame(true);
   }
 }
 
+/* END */
 function endGame(win){
-  state.gameOver=true;
-  state.win=win;
-  broadcast();
-  renderState();
+  gameOver=true;
+  overlay.classList.remove("hidden");
+  overlayText.textContent=win?"YOU WIN!":"YOU LOSE!";
+  send("end",{win});
 }
 
-/* ---------------- EVENTS ---------------- */
+/* EVENTS */
 if(mode==="master"){
-  startBtn.addEventListener("click",startSequence);
+  startBtn.addEventListener("click",()=>startSequence(true));
 }
 
 playAgainBtn.addEventListener("click",()=>location.reload());
