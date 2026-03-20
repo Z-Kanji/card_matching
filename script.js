@@ -1,18 +1,19 @@
-/* ---------------- ABLY SETUP ---------------- */
-
 const params = new URLSearchParams(window.location.search);
 const ablyKey = params.get("ablyKey");
 const mode = params.get("mode") || "master";
 
-let ably = null;
-let channel = null;
+let ably = ablyKey ? new Ably.Realtime(ablyKey) : null;
+let channel = ably ? ably.channels.get("card-game") : null;
 
-if (ablyKey) {
-  ably = new Ably.Realtime(ablyKey);
-  channel = ably.channels.get("card-game");
-}
-
-/* ---------------- GAME CODE ---------------- */
+/* ---------------- GAME STATE ---------------- */
+let state = {
+  deck: [],
+  flipped: [],
+  matched: [],
+  time: 60,
+  started: false,
+  gameOver: false
+};
 
 const images = [
   "ball.png",
@@ -32,36 +33,30 @@ const overlay = document.getElementById("overlay");
 const overlayText = document.getElementById("overlayText");
 const timerDisplay = document.getElementById("timer");
 
-let firstCard=null, secondCard=null;
-let lockBoard=false, timerStarted=false;
-let timerInterval, timeLeft=60, gameOver=false;
-
-/* Sync helper */
-function send(event, data){
+/* ---------------- SYNC ---------------- */
+function broadcast(){
   if(mode==="master" && channel){
-    channel.publish(event, data);
+    channel.publish("state", state);
   }
 }
 
-/* Receive updates (FOLLOW MODE) */
 if(channel && mode==="follow"){
-  channel.subscribe((msg)=>{
-    const {name, data} = msg;
-
-    if(name==="start") startSequence(false);
-    if(name==="flip") forceFlip(data.index);
-    if(name==="match") markMatch(data.a, data.b);
-    if(name==="timer") timerDisplay.textContent = `Time: ${data}`;
-    if(name==="end") endGame(data.win);
+  channel.subscribe("state", msg=>{
+    state = msg.data;
+    renderState();
   });
 }
 
-/* Init */
+/* ---------------- INIT ---------------- */
+function shuffle(arr){
+  return [...arr].sort(()=>Math.random()-0.5);
+}
+
 function initBoard(){
   board.innerHTML="";
-  const deck=[...images,...images];
+  state.deck = shuffle([...images, ...images]);
 
-  deck.forEach((img,i)=>{
+  state.deck.forEach((img,i)=>{
     const card=document.createElement("div");
     card.className="card";
 
@@ -79,119 +74,139 @@ function initBoard(){
     `;
 
     if(mode==="master"){
-      card.addEventListener("click",()=>flipCard(card,i));
+      card.addEventListener("click",()=>handleFlip(i));
     }
 
     board.appendChild(card);
   });
+
+  renderState();
 }
 
-/* Start */
-function startSequence(sendEvent=true){
-  if(gameOver) return;
+/* ---------------- RENDER ---------------- */
+function renderState(){
+  const cards = document.querySelectorAll(".card");
 
-  const cards=document.querySelectorAll(".card");
-  cards.forEach(c=>c.classList.add("flipped"));
+  cards.forEach((card,i)=>{
+    card.classList.toggle("flipped", state.flipped.includes(i));
+    card.classList.toggle("matched", state.matched.includes(i));
+  });
 
-  if(sendEvent) send("start",{});
+  timerDisplay.textContent = `Time: ${state.time}`;
+
+  if(state.gameOver){
+    overlay.classList.remove("hidden");
+    overlayText.textContent = state.win ? "YOU WIN!" : "YOU LOSE!";
+  }
+}
+
+/* ---------------- START ---------------- */
+function startSequence(){
+  if(mode!=="master") return;
+
+  const cards = document.querySelectorAll(".card");
+
+  cards.forEach((c,i)=>{
+    state.flipped.push(i);
+  });
+
+  broadcast();
+  renderState();
 
   setTimeout(()=>{
-    cards.forEach(c=>c.classList.remove("flipped"));
+    state.flipped = [];
+    state.matched = [];
+    state.deck = shuffle([...images,...images]);
+    state.started = true;
+    state.time = 60;
+
+    updateCardImages();
+    broadcast();
+    renderState();
   },3000);
 }
 
-/* Flip */
-function flipCard(card,index){
-  if(lockBoard||gameOver||card.classList.contains("flipped")) return;
+/* Update images after shuffle */
+function updateCardImages(){
+  const cards = document.querySelectorAll(".card");
+  cards.forEach((card,i)=>{
+    card.querySelector(".card-front img").src = state.deck[i];
+  });
+}
 
-  if(!timerStarted){
+/* ---------------- GAMEPLAY ---------------- */
+let first=null;
+
+function handleFlip(index){
+  if(state.gameOver) return;
+  if(state.flipped.includes(index)) return;
+
+  if(!state.started){
     startTimer();
-    timerStarted=true;
+    state.started=true;
   }
 
-  card.classList.add("flipped");
-  send("flip",{index});
+  state.flipped.push(index);
 
-  if(!firstCard){
-    firstCard={card,index};
-    return;
-  }
-
-  secondCard={card,index};
-  lockBoard=true;
-
-  const a=firstCard.card.querySelector("img").src;
-  const b=secondCard.card.querySelector("img").src;
-
-  if(a===b){
-    firstCard.card.classList.add("matched");
-    secondCard.card.classList.add("matched");
-
-    send("match",{a:firstCard.index,b:secondCard.index});
-
-    reset();
-    checkWin();
+  if(first===null){
+    first=index;
   } else {
-    setTimeout(()=>{
-      firstCard.card.classList.remove("flipped");
-      secondCard.card.classList.remove("flipped");
-      reset();
-    },800);
+    const second=index;
+
+    if(state.deck[first] === state.deck[second]){
+      state.matched.push(first, second);
+      first=null;
+    } else {
+      setTimeout(()=>{
+        state.flipped = state.flipped.filter(i=>i!==first && i!==second);
+        first=null;
+        broadcast();
+        renderState();
+      },800);
+    }
   }
+
+  broadcast();
+  renderState();
+  checkWin();
 }
 
-/* FOLLOW FORCED ACTIONS */
-function forceFlip(index){
-  const card=document.querySelectorAll(".card")[index];
-  card.classList.add("flipped");
-}
-
-function markMatch(a,b){
-  const cards=document.querySelectorAll(".card");
-  cards[a].classList.add("matched");
-  cards[b].classList.add("matched");
-}
-
-/* Reset */
-function reset(){
-  firstCard=null;
-  secondCard=null;
-  lockBoard=false;
-}
-
-/* Timer */
+/* ---------------- TIMER ---------------- */
 function startTimer(){
-  timerInterval=setInterval(()=>{
-    timeLeft--;
-    timerDisplay.textContent=`Time: ${timeLeft}`;
-    send("timer",timeLeft);
+  const interval = setInterval(()=>{
+    if(state.gameOver){
+      clearInterval(interval);
+      return;
+    }
 
-    if(timeLeft<=0){
-      clearInterval(timerInterval);
+    state.time--;
+    broadcast();
+    renderState();
+
+    if(state.time<=0){
       endGame(false);
+      clearInterval(interval);
     }
   },1000);
 }
 
-/* Win */
+/* ---------------- WIN ---------------- */
 function checkWin(){
-  if(document.querySelectorAll(".matched").length===12){
-    clearInterval(timerInterval);
+  if(state.matched.length===12){
     endGame(true);
   }
 }
 
-/* End */
 function endGame(win){
-  gameOver=true;
-  overlay.classList.remove("hidden");
-  overlayText.textContent=win?"YOU WIN!":"YOU LOSE!";
-  send("end",{win});
+  state.gameOver=true;
+  state.win=win;
+  broadcast();
+  renderState();
 }
 
-/* Controls */
+/* ---------------- EVENTS ---------------- */
 if(mode==="master"){
-  startBtn.addEventListener("click",()=>startSequence(true));
+  startBtn.addEventListener("click",startSequence);
 }
 
 playAgainBtn.addEventListener("click",()=>location.reload());
