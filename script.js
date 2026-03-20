@@ -20,12 +20,10 @@ let firstCard=null, secondCard=null;
 let lockBoard=false, timerStarted=false;
 let timerInterval, timeLeft=60, gameOver=false;
 
-/* Shuffle */
 function shuffle(arr){
   return [...arr].sort(()=>Math.random()-0.5);
 }
 
-/* Init */
 function initBoard(){
   board.innerHTML="";
   const deck=shuffle([...images,...images]);
@@ -52,18 +50,12 @@ function initBoard(){
   });
 }
 
-/* TRUE 2-PILE SHUFFLE */
 function shuffleAnimation(callback){
   const cards=[...document.querySelectorAll(".card")];
 
   cards.forEach((card,i)=>{
-    card.classList.remove("to-left","to-right","from-pile");
-
-    if(i<6){
-      card.classList.add("to-left");  // first 6 cards → left pile
-    } else {
-      card.classList.add("to-right"); // last 6 → right pile
-    }
+    if(i<6) card.classList.add("to-left");
+    else card.classList.add("to-right");
   });
 
   setTimeout(()=>{
@@ -81,7 +73,6 @@ function shuffleAnimation(callback){
   },600);
 }
 
-/* Start */
 function startSequence(){
   if(gameOver) return;
 
@@ -99,7 +90,6 @@ function startSequence(){
   },3000);
 }
 
-/* Flip */
 function flipCard(){
   if(lockBoard||gameOver||this.classList.contains("flipped")) return;
 
@@ -141,7 +131,6 @@ function reset(){
   lockBoard=false;
 }
 
-/* Timer */
 function startTimer(){
   timerInterval=setInterval(()=>{
     timeLeft--;
@@ -154,7 +143,6 @@ function startTimer(){
   },1000);
 }
 
-/* Win */
 function checkWin(){
   if(document.querySelectorAll(".matched").length===12){
     clearInterval(timerInterval);
@@ -162,7 +150,6 @@ function checkWin(){
   }
 }
 
-/* End */
 function endGame(win){
   gameOver=true;
   overlay.classList.remove("hidden");
@@ -170,27 +157,25 @@ function endGame(win){
   if(win) confetti();
 }
 
-/* FIXED CONFETTI */
+/* LONGER CONFETTI */
 function confetti(){
   const colors=["#ff4d4d","#ffd24d","#4dff88","#4dd2ff","#c84dff"];
 
-  for(let i=0;i<220;i++){
+  for(let i=0;i<300;i++){  // MORE pieces
     const c=document.createElement("div");
     c.className="confetti";
     c.style.left=Math.random()*100+"vw";
     c.style.background=colors[Math.floor(Math.random()*colors.length)];
-    c.style.animationDuration=(5+Math.random()*4)+"s";
+    c.style.animationDuration=(7+Math.random()*5)+"s"; // LONGER fall
     document.body.appendChild(c);
 
-    setTimeout(()=>c.remove(),9000);
+    setTimeout(()=>c.remove(),12000); // STAYS LONGER
   }
 }
 
-/* Play Again FIX */
 playAgainBtn.addEventListener("click",()=>{
   location.reload();
 });
 
-/* Init */
 initBoard();
 startBtn.addEventListener("click",startSequence);
