@@ -28,7 +28,7 @@ body {
   perspective:1000px;
   position:relative;
   cursor:pointer;
-  transition:transform .4s ease;
+  transition:transform .5s ease;
 }
 
 .card-inner {
@@ -117,9 +117,13 @@ body {
   text-align:center;
 }
 
-/* -------- SHUFFLE ANIMATION -------- */
-.card.to-pile {
-  transform: translate(var(--x), var(--y)) scale(.5);
+/* -------- TRUE TWO-PILE SHUFFLE -------- */
+.card.to-left {
+  transform: translate(-250px, 0) scale(0.5);
+}
+
+.card.to-right {
+  transform: translate(250px, 0) scale(0.5);
 }
 
 .card.from-pile {
@@ -127,13 +131,14 @@ body {
   transition: transform .6s ease;
 }
 
-/* -------- CONFETTI -------- */
+/* -------- CONFETTI (ABOVE OVERLAY) -------- */
 .confetti {
   position:fixed;
   top:-10px;
   width:6px;
   height:12px;
   opacity:.9;
+  z-index:2000; /* ABOVE overlay */
   animation:fall linear forwards;
 }
 
