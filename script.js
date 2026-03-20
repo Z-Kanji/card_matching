@@ -5,14 +5,12 @@ const mode = params.get("mode") || "master";
 let ably = ablyKey ? new Ably.Realtime(ablyKey) : null;
 let channel = ably ? ably.channels.get("card-game") : null;
 
-/* SEND */
 function send(type,data={}){
   if(mode==="master" && channel){
     channel.publish(type,data);
   }
 }
 
-/* RECEIVE */
 if(channel && mode==="follow"){
   channel.subscribe(msg=>{
     const {name,data}=msg;
@@ -28,7 +26,6 @@ if(channel && mode==="follow"){
 }
 
 /* GAME */
-
 const images=[
   "ball.png","cards.png","goalie.jpg",
   "lavalle.jpg","lax_stick.png","wolfie.png"
@@ -47,6 +44,22 @@ let deck=[];
 let firstCard=null,secondCard=null;
 let lockBoard=false,timerStarted=false;
 let timerInterval,timeLeft=60,gameOver=false;
+
+/* CONFETTI (RESTORED) */
+function confetti(){
+  const colors=["#ff4d4d","#ffd24d","#4dff88","#4dd2ff","#c84dff"];
+
+  for(let i=0;i<300;i++){
+    const c=document.createElement("div");
+    c.className="confetti";
+    c.style.left=Math.random()*100+"vw";
+    c.style.background=colors[Math.floor(Math.random()*colors.length)];
+    c.style.animationDuration=(7+Math.random()*5)+"s";
+    document.body.appendChild(c);
+
+    setTimeout(()=>c.remove(),12000);
+  }
+}
 
 /* INIT */
 function initBoard(){
@@ -78,7 +91,6 @@ function initBoard(){
   });
 }
 
-/* SHUFFLE (MASTER ONLY GENERATES) */
 function shuffle(arr){ return [...arr].sort(()=>Math.random()-0.5); }
 
 function startSequence(sendEvent=true){
@@ -91,10 +103,8 @@ function startSequence(sendEvent=true){
 
   setTimeout(()=>{
     const newDeck=shuffle([...images,...images]);
-
     setDeck(newDeck);
     if(sendEvent) send("setDeck",{deck:newDeck});
-
   },3000);
 }
 
@@ -103,7 +113,6 @@ function setDeck(newDeck){
 
   const cards=[...document.querySelectorAll(".card")];
 
-  /* shuffle animation */
   cards.forEach((card,i)=>{
     if(i<6) card.classList.add("to-left");
     else card.classList.add("to-right");
@@ -166,7 +175,7 @@ function flipCard(card,i){
   }
 }
 
-/* FOLLOW ACTIONS */
+/* FOLLOW */
 function flipSync(i){
   document.querySelectorAll(".card")[i].classList.add("flipped");
 }
@@ -216,10 +225,16 @@ function checkWin(){
   }
 }
 
+/* END (CONFETTI FIX HERE) */
 function endGame(win){
   gameOver=true;
   overlay.classList.remove("hidden");
   overlayText.textContent=win?"YOU WIN!":"YOU LOSE!";
+
+  if(win){
+    confetti(); // ✅ RESTORED
+  }
+
   send("end",{win});
 }
 
