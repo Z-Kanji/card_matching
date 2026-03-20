@@ -117,33 +117,28 @@ body {
   text-align:center;
 }
 
-/* -------- TRUE TWO-PILE SHUFFLE -------- */
-.card.to-left {
-  transform: translate(-250px, 0) scale(0.5);
-}
-
-.card.to-right {
-  transform: translate(250px, 0) scale(0.5);
-}
+/* Shuffle animation */
+.card.to-left { transform: translate(-250px,0) scale(.5); }
+.card.to-right { transform: translate(250px,0) scale(.5); }
 
 .card.from-pile {
   transform: translate(0,0) scale(1);
   transition: transform .6s ease;
 }
 
-/* -------- CONFETTI (ABOVE OVERLAY) -------- */
+/* CONFETTI (LONGER) */
 .confetti {
   position:fixed;
   top:-10px;
   width:6px;
   height:12px;
   opacity:.9;
-  z-index:2000; /* ABOVE overlay */
+  z-index:2000;
   animation:fall linear forwards;
 }
 
 @keyframes fall {
   to {
-    transform:translateY(110vh) rotate(720deg);
+    transform:translateY(120vh) rotate(1080deg);
   }
 }
