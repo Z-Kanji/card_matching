@@ -5,54 +5,53 @@ const mode = params.get("mode") || "master";
 let ably = ablyKey ? new Ably.Realtime(ablyKey) : null;
 let channel = ably ? ably.channels.get("card-game") : null;
 
-/* SEND EVENT */
-function send(type, data = {}) {
-  if (mode === "master" && channel) {
-    channel.publish(type, data);
+/* SEND */
+function send(type,data={}){
+  if(mode==="master" && channel){
+    channel.publish(type,data);
   }
 }
 
-/* RECEIVE EVENTS (FOLLOW) */
-if (channel && mode === "follow") {
-  channel.subscribe((msg) => {
-    const { name, data } = msg;
+/* RECEIVE */
+if(channel && mode==="follow"){
+  channel.subscribe(msg=>{
+    const {name,data}=msg;
 
-    if (name === "start") startSequence(false);
-    if (name === "shuffle") runShuffle(data.deck);
-    if (name === "flip") flipFromSync(data.index);
-    if (name === "unflip") unflipFromSync(data.a, data.b);
-    if (name === "match") matchFromSync(data.a, data.b);
-    if (name === "timer") updateTimer(data.time);
-    if (name === "end") endGame(data.win);
+    if(name==="start") startSequence(false);
+    if(name==="setDeck") setDeck(data.deck);
+    if(name==="flip") flipSync(data.i);
+    if(name==="unflip") unflipSync(data.a,data.b);
+    if(name==="match") matchSync(data.a,data.b);
+    if(name==="timer") updateTimer(data.t);
+    if(name==="end") endGame(data.win);
   });
 }
 
-/* ---------------- ORIGINAL GAME ---------------- */
+/* GAME */
 
-const images = [
+const images=[
   "ball.png","cards.png","goalie.jpg",
   "lavalle.jpg","lax_stick.png","wolfie.png"
 ];
 
-const logo = "wolfhead.png";
+const logo="wolfhead.png";
 
-const board = document.getElementById("gameBoard");
-const startBtn = document.getElementById("startBtn");
-const playAgainBtn = document.getElementById("playAgainBtn");
-const overlay = document.getElementById("overlay");
-const overlayText = document.getElementById("overlayText");
-const timerDisplay = document.getElementById("timer");
+const board=document.getElementById("gameBoard");
+const startBtn=document.getElementById("startBtn");
+const playAgainBtn=document.getElementById("playAgainBtn");
+const overlay=document.getElementById("overlay");
+const overlayText=document.getElementById("overlayText");
+const timerDisplay=document.getElementById("timer");
 
-let firstCard=null, secondCard=null;
-let lockBoard=false, timerStarted=false;
-let timerInterval, timeLeft=60, gameOver=false;
+let deck=[];
+let firstCard=null,secondCard=null;
+let lockBoard=false,timerStarted=false;
+let timerInterval,timeLeft=60,gameOver=false;
 
 /* INIT */
-function shuffle(arr){ return [...arr].sort(()=>Math.random()-0.5); }
-
 function initBoard(){
   board.innerHTML="";
-  const deck=shuffle([...images,...images]);
+  deck=[...images,...images];
 
   deck.forEach((img,i)=>{
     const card=document.createElement("div");
@@ -79,7 +78,9 @@ function initBoard(){
   });
 }
 
-/* START */
+/* SHUFFLE (MASTER ONLY GENERATES) */
+function shuffle(arr){ return [...arr].sort(()=>Math.random()-0.5); }
+
 function startSequence(sendEvent=true){
   if(gameOver) return;
 
@@ -91,16 +92,18 @@ function startSequence(sendEvent=true){
   setTimeout(()=>{
     const newDeck=shuffle([...images,...images]);
 
-    runShuffle(newDeck);
-    if(sendEvent) send("shuffle",{deck:newDeck});
+    setDeck(newDeck);
+    if(sendEvent) send("setDeck",{deck:newDeck});
 
   },3000);
 }
 
-/* SHUFFLE */
-function runShuffle(deck){
+function setDeck(newDeck){
+  deck=newDeck;
+
   const cards=[...document.querySelectorAll(".card")];
 
+  /* shuffle animation */
   cards.forEach((card,i)=>{
     if(i<6) card.classList.add("to-left");
     else card.classList.add("to-right");
@@ -125,7 +128,7 @@ function runShuffle(deck){
 }
 
 /* FLIP */
-function flipCard(card,index){
+function flipCard(card,i){
   if(lockBoard||gameOver||card.classList.contains("flipped")) return;
 
   if(!timerStarted){
@@ -134,24 +137,21 @@ function flipCard(card,index){
   }
 
   card.classList.add("flipped");
-  send("flip",{index});
+  send("flip",{i});
 
   if(!firstCard){
-    firstCard={card,index};
+    firstCard={card,i};
     return;
   }
 
-  secondCard={card,index};
+  secondCard={card,i};
   lockBoard=true;
 
-  const a=firstCard.card.querySelector("img").src;
-  const b=secondCard.card.querySelector("img").src;
-
-  if(a===b){
+  if(deck[firstCard.i]===deck[secondCard.i]){
     firstCard.card.classList.add("matched");
     secondCard.card.classList.add("matched");
 
-    send("match",{a:firstCard.index,b:secondCard.index});
+    send("match",{a:firstCard.i,b:secondCard.i});
     reset();
     checkWin();
 
@@ -160,27 +160,33 @@ function flipCard(card,index){
       firstCard.card.classList.remove("flipped");
       secondCard.card.classList.remove("flipped");
 
-      send("unflip",{a:firstCard.index,b:secondCard.index});
+      send("unflip",{a:firstCard.i,b:secondCard.i});
       reset();
     },800);
   }
 }
 
-/* FOLLOW HELPERS */
-function flipFromSync(i){
+/* FOLLOW ACTIONS */
+function flipSync(i){
   document.querySelectorAll(".card")[i].classList.add("flipped");
 }
 
-function unflipFromSync(a,b){
+function unflipSync(a,b){
   const cards=document.querySelectorAll(".card");
   cards[a].classList.remove("flipped");
   cards[b].classList.remove("flipped");
 }
 
-function matchFromSync(a,b){
+function matchSync(a,b){
   const cards=document.querySelectorAll(".card");
   cards[a].classList.add("matched");
   cards[b].classList.add("matched");
+}
+
+function reset(){
+  firstCard=null;
+  secondCard=null;
+  lockBoard=false;
 }
 
 /* TIMER */
@@ -188,7 +194,7 @@ function startTimer(){
   timerInterval=setInterval(()=>{
     timeLeft--;
     timerDisplay.textContent=`Time: ${timeLeft}`;
-    send("timer",{time:timeLeft});
+    send("timer",{t:timeLeft});
 
     if(timeLeft<=0){
       clearInterval(timerInterval);
@@ -198,6 +204,7 @@ function startTimer(){
 }
 
 function updateTimer(t){
+  timeLeft=t;
   timerDisplay.textContent=`Time: ${t}`;
 }
 
@@ -209,7 +216,6 @@ function checkWin(){
   }
 }
 
-/* END */
 function endGame(win){
   gameOver=true;
   overlay.classList.remove("hidden");
