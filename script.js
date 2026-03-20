@@ -11,6 +11,7 @@ const logo = "wolfhead.png";
 
 const board = document.getElementById("gameBoard");
 const startBtn = document.getElementById("startBtn");
+const playAgainBtn = document.getElementById("playAgainBtn");
 const overlay = document.getElementById("overlay");
 const overlayText = document.getElementById("overlayText");
 const timerDisplay = document.getElementById("timer");
@@ -24,7 +25,7 @@ function shuffle(arr){
   return [...arr].sort(()=>Math.random()-0.5);
 }
 
-/* Init board */
+/* Init */
 function initBoard(){
   board.innerHTML="";
   const deck=shuffle([...images,...images]);
@@ -51,22 +52,25 @@ function initBoard(){
   });
 }
 
-/* -------- SHUFFLE ANIMATION -------- */
+/* TRUE 2-PILE SHUFFLE */
 function shuffleAnimation(callback){
   const cards=[...document.querySelectorAll(".card")];
 
   cards.forEach((card,i)=>{
-    const left = i%2===0;
-    card.style.setProperty("--x", left ? "-120px" : "120px");
-    card.style.setProperty("--y", "40px");
-    card.classList.add("to-pile");
+    card.classList.remove("to-left","to-right","from-pile");
+
+    if(i<6){
+      card.classList.add("to-left");  // first 6 cards → left pile
+    } else {
+      card.classList.add("to-right"); // last 6 → right pile
+    }
   });
 
   setTimeout(()=>{
-    callback(); // shuffle images
+    callback();
 
     cards.forEach(card=>{
-      card.classList.remove("to-pile");
+      card.classList.remove("to-left","to-right");
       card.classList.add("from-pile");
     });
 
@@ -77,12 +81,11 @@ function shuffleAnimation(callback){
   },600);
 }
 
-/* Start sequence */
+/* Start */
 function startSequence(){
   if(gameOver) return;
 
   const cards=document.querySelectorAll(".card");
-
   cards.forEach(c=>c.classList.add("flipped"));
 
   setTimeout(()=>{
@@ -96,7 +99,7 @@ function startSequence(){
   },3000);
 }
 
-/* Flip logic */
+/* Flip */
 function flipCard(){
   if(lockBoard||gameOver||this.classList.contains("flipped")) return;
 
@@ -167,21 +170,26 @@ function endGame(win){
   if(win) confetti();
 }
 
-/* Better + longer confetti */
+/* FIXED CONFETTI */
 function confetti(){
   const colors=["#ff4d4d","#ffd24d","#4dff88","#4dd2ff","#c84dff"];
 
-  for(let i=0;i<200;i++){
+  for(let i=0;i<220;i++){
     const c=document.createElement("div");
     c.className="confetti";
     c.style.left=Math.random()*100+"vw";
     c.style.background=colors[Math.floor(Math.random()*colors.length)];
-    c.style.animationDuration=(4+Math.random()*4)+"s";
+    c.style.animationDuration=(5+Math.random()*4)+"s";
     document.body.appendChild(c);
 
-    setTimeout(()=>c.remove(),8000);
+    setTimeout(()=>c.remove(),9000);
   }
 }
+
+/* Play Again FIX */
+playAgainBtn.addEventListener("click",()=>{
+  location.reload();
+});
 
 /* Init */
 initBoard();
