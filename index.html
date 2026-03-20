@@ -2,27 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Card Matching Game</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
-  <div class="game-wrapper">
-    <div id="gameBoard"></div>
 
-    <div class="controls">
-      <button id="startBtn" type="button">Start Game</button>
-      <div id="timer">Time: 60</div>
-    </div>
+<div class="game-wrapper">
+  <div id="gameBoard"></div>
+
+  <div class="controls">
+    <button id="startBtn">Start Game</button>
+    <div id="timer">Time: 60</div>
   </div>
+</div>
 
-  <div id="overlay" class="hidden" aria-hidden="true">
-    <div class="overlay-box">
-      <h1 id="overlayText"></h1>
-      <button id="playAgainBtn" type="button">Play Again</button>
-    </div>
+<div id="overlay" class="hidden">
+  <div class="overlay-box">
+    <h1 id="overlayText"></h1>
+    <button id="playAgainBtn">Play Again</button>
   </div>
+</div>
 
-  <script src="script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
