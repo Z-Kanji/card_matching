@@ -1,3 +1,19 @@
+/* ---------------- ABLY SETUP ---------------- */
+
+const params = new URLSearchParams(window.location.search);
+const ablyKey = params.get("ablyKey");
+const mode = params.get("mode") || "master";
+
+let ably = null;
+let channel = null;
+
+if (ablyKey) {
+  ably = new Ably.Realtime(ablyKey);
+  channel = ably.channels.get("card-game");
+}
+
+/* ---------------- GAME CODE ---------------- */
+
 const images = [
   "ball.png",
   "cards.png",
@@ -20,13 +36,30 @@ let firstCard=null, secondCard=null;
 let lockBoard=false, timerStarted=false;
 let timerInterval, timeLeft=60, gameOver=false;
 
-function shuffle(arr){
-  return [...arr].sort(()=>Math.random()-0.5);
+/* Sync helper */
+function send(event, data){
+  if(mode==="master" && channel){
+    channel.publish(event, data);
+  }
 }
 
+/* Receive updates (FOLLOW MODE) */
+if(channel && mode==="follow"){
+  channel.subscribe((msg)=>{
+    const {name, data} = msg;
+
+    if(name==="start") startSequence(false);
+    if(name==="flip") forceFlip(data.index);
+    if(name==="match") markMatch(data.a, data.b);
+    if(name==="timer") timerDisplay.textContent = `Time: ${data}`;
+    if(name==="end") endGame(data.win);
+  });
+}
+
+/* Init */
 function initBoard(){
   board.innerHTML="";
-  const deck=shuffle([...images,...images]);
+  const deck=[...images,...images];
 
   deck.forEach((img,i)=>{
     const card=document.createElement("div");
@@ -45,96 +78,93 @@ function initBoard(){
       </div>
     `;
 
-    card.addEventListener("click",flipCard);
+    if(mode==="master"){
+      card.addEventListener("click",()=>flipCard(card,i));
+    }
+
     board.appendChild(card);
   });
 }
 
-function shuffleAnimation(callback){
-  const cards=[...document.querySelectorAll(".card")];
-
-  cards.forEach((card,i)=>{
-    if(i<6) card.classList.add("to-left");
-    else card.classList.add("to-right");
-  });
-
-  setTimeout(()=>{
-    callback();
-
-    cards.forEach(card=>{
-      card.classList.remove("to-left","to-right");
-      card.classList.add("from-pile");
-    });
-
-    setTimeout(()=>{
-      cards.forEach(c=>c.classList.remove("from-pile"));
-    },600);
-
-  },600);
-}
-
-function startSequence(){
+/* Start */
+function startSequence(sendEvent=true){
   if(gameOver) return;
 
   const cards=document.querySelectorAll(".card");
   cards.forEach(c=>c.classList.add("flipped"));
 
+  if(sendEvent) send("start",{});
+
   setTimeout(()=>{
-    shuffleAnimation(()=>{
-      const newDeck=shuffle([...images,...images]);
-      cards.forEach((card,i)=>{
-        card.querySelector(".card-front img").src=newDeck[i];
-        card.classList.remove("flipped","matched");
-      });
-    });
+    cards.forEach(c=>c.classList.remove("flipped"));
   },3000);
 }
 
-function flipCard(){
-  if(lockBoard||gameOver||this.classList.contains("flipped")) return;
+/* Flip */
+function flipCard(card,index){
+  if(lockBoard||gameOver||card.classList.contains("flipped")) return;
 
   if(!timerStarted){
     startTimer();
     timerStarted=true;
   }
 
-  this.classList.add("flipped");
+  card.classList.add("flipped");
+  send("flip",{index});
 
   if(!firstCard){
-    firstCard=this;
+    firstCard={card,index};
     return;
   }
 
-  secondCard=this;
+  secondCard={card,index};
   lockBoard=true;
 
-  const a=firstCard.querySelector("img").src;
-  const b=secondCard.querySelector("img").src;
+  const a=firstCard.card.querySelector("img").src;
+  const b=secondCard.card.querySelector("img").src;
 
   if(a===b){
-    firstCard.classList.add("matched");
-    secondCard.classList.add("matched");
+    firstCard.card.classList.add("matched");
+    secondCard.card.classList.add("matched");
+
+    send("match",{a:firstCard.index,b:secondCard.index});
+
     reset();
     checkWin();
   } else {
     setTimeout(()=>{
-      firstCard.classList.remove("flipped");
-      secondCard.classList.remove("flipped");
+      firstCard.card.classList.remove("flipped");
+      secondCard.card.classList.remove("flipped");
       reset();
     },800);
   }
 }
 
+/* FOLLOW FORCED ACTIONS */
+function forceFlip(index){
+  const card=document.querySelectorAll(".card")[index];
+  card.classList.add("flipped");
+}
+
+function markMatch(a,b){
+  const cards=document.querySelectorAll(".card");
+  cards[a].classList.add("matched");
+  cards[b].classList.add("matched");
+}
+
+/* Reset */
 function reset(){
   firstCard=null;
   secondCard=null;
   lockBoard=false;
 }
 
+/* Timer */
 function startTimer(){
   timerInterval=setInterval(()=>{
     timeLeft--;
     timerDisplay.textContent=`Time: ${timeLeft}`;
+    send("timer",timeLeft);
 
     if(timeLeft<=0){
       clearInterval(timerInterval);
@@ -143,6 +173,7 @@ function startTimer(){
   },1000);
 }
 
+/* Win */
 function checkWin(){
   if(document.querySelectorAll(".matched").length===12){
     clearInterval(timerInterval);
@@ -150,32 +181,19 @@ function checkWin(){
   }
 }
 
+/* End */
 function endGame(win){
   gameOver=true;
   overlay.classList.remove("hidden");
   overlayText.textContent=win?"YOU WIN!":"YOU LOSE!";
-  if(win) confetti();
+  send("end",{win});
 }
 
-/* LONGER CONFETTI */
-function confetti(){
-  const colors=["#ff4d4d","#ffd24d","#4dff88","#4dd2ff","#c84dff"];
-
-  for(let i=0;i<300;i++){  // MORE pieces
-    const c=document.createElement("div");
-    c.className="confetti";
-    c.style.left=Math.random()*100+"vw";
-    c.style.background=colors[Math.floor(Math.random()*colors.length)];
-    c.style.animationDuration=(7+Math.random()*5)+"s"; // LONGER fall
-    document.body.appendChild(c);
-
-    setTimeout(()=>c.remove(),12000); // STAYS LONGER
-  }
+/* Controls */
+if(mode==="master"){
+  startBtn.addEventListener("click",()=>startSequence(true));
 }
 
-playAgainBtn.addEventListener("click",()=>{
-  location.reload();
-});
+playAgainBtn.addEventListener("click",()=>location.reload());
 
 initBoard();
-startBtn.addEventListener("click",startSequence);
